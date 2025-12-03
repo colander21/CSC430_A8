@@ -94,7 +94,7 @@ begin
   raise InterpError.CreateFmt('unbound identifier: %s', [name]);
 end;
 
-// ===== Interp (first version) =====
+// ===== Interp (basic version with only Num, String, Id) =====
 function Interp(const e: ExprC; env: PEnv): Value;
 begin
   case e.tag of
@@ -175,4 +175,5 @@ begin
 end;
 
 end.
+
 
