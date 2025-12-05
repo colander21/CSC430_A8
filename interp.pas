@@ -185,6 +185,32 @@ begin
   end;
 end;
 
+function TopLevelEnv: PEnv;
+var v: Value; env: PEnv;
+begin
+  env := nil;
+
+  v.tag := vtBool; v.bool := True;
+  env := Extend(env, 'true', v);
+
+  v.tag := vtBool; v.bool := False;
+  env := Extend(env, 'false', v);
+
+  Result := env;
+end;
+
+function Serialize(const v: Value): ShortString;
+begin
+  case v.tag of
+    vtNum:  Str(v.num:0:0, Result);
+    vtStr:  Result := '"' + v.str + '"';
+    vtBool: if v.bool then Result := 'true' else Result := 'false';
+    vtClosure: Result := '#<procedure>';
+  else
+    Result := '#<unknown>';
+  end;
+end;
+
 // ===== Tests =====
 procedure TestInterp;
 var
@@ -362,6 +388,27 @@ begin
 
   Assert(v.tag = vtNum, 'closure env: wrong result tag');
   Assert(Abs(v.num - 10) < 0.01, 'closure env: wrong captured value');
+
+  // Test 10: serialize function
+  v.tag := vtNum;
+  v.num := 42.0;
+  Assert(Serialize(v) = '42', 'serialize wrong output for 42');
+
+  v.tag := vtClosure;
+  v.closure := clos; 
+  Assert(Serialize(v) = '#<procedure>', 'serialize wrong for closure');
+
+
+  // Test 11: TopLevelEnv test bindings
+  v := Lookup(env, 'true');
+  Assert(v.tag = vtBool, 'TopLevelEnv true has wrong tag');
+  Assert(v.bool = True, 'TopLevelEnv true has wrong value');
+
+  v := Lookup(env, 'false');
+  Assert(v.tag = vtBool, 'TopLevelEnv false has wrong tag');
+  Assert(v.bool = False, 'TopLevelEnv false has wrong value');
+
+
 end;
 
 end.
