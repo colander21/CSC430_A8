@@ -9,7 +9,7 @@ uses
 
 type
   // ===== Expression Types =====
-  ExprTag = (etNum, etStr, etId, etIf, etLam);
+  ExprTag = (etNum, etStr, etId, etIf, etLam, etApp);
 
   PExpr = ^ExprC;
 
@@ -27,6 +27,10 @@ type
       etLam: (
         param: ShortString;
         body: PExpr
+      );
+      etApp: (
+        funcExpr: PExpr;
+        argExpr: PExpr
       );
   end;
 
@@ -119,6 +123,8 @@ function Interp(const e: ExprC; env: PEnv): Value;
 var
   condVal: Value;
   clos: PClosure;
+  funcVal, argVal: Value;
+  newEnv: PEnv;
 begin
   case e.tag of
     etNum:
@@ -160,6 +166,19 @@ begin
 
         Result.tag := vtClosure;
         Result.closure := clos;
+      end;
+
+    etApp:
+      begin
+        funcVal := Interp(e.funcExpr^, env);
+        if funcVal.tag <> vtClosure then
+          raise InterpError.Create('interp: function position is not a closure');
+
+        argVal := Interp(e.argExpr^, env);
+
+        newEnv := Extend(funcVal.closure^.env, funcVal.closure^.param, argVal);
+
+        Result := Interp(funcVal.closure^.body^, newEnv);
       end;
   else
     raise InterpError.Create('interp: unknown expression tag');
@@ -286,6 +305,33 @@ begin
   Assert(v.closure^.param = 'x', 'lambda: wrong param name');
   Assert(v.closure^.body^.tag = etNum, 'lambda: wrong body tag');
   Assert(Abs(v.closure^.body^.num - 5.0) < 0.01, 'lambda: wrong body value');
+
+  // Test 8: applying identity lambda
+  // (lambda (x) : x) 42 => 42
+
+  env := nil;
+
+  New(bodyExpr);
+  bodyExpr^.tag := etId;
+  bodyExpr^.name := 'x';
+
+  New(condExpr);
+  condExpr^.tag := etLam;
+  condExpr^.param := 'x';
+  condExpr^.body := bodyExpr;
+
+  New(thenExpr);
+  thenExpr^.tag := etNum;
+  thenExpr^.num := 42;
+
+  e.tag := etApp;
+  e.funcExpr := condExpr;
+  e.argExpr := thenExpr;
+
+  v := Interp(e, env);
+
+  Assert(v.tag = vtNum, 'app: wrong result tag');
+  Assert(Abs(v.num - 42.0) < 0.01, 'app: wrong result value');
 end;
 
 end.
