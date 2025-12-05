@@ -332,6 +332,36 @@ begin
 
   Assert(v.tag = vtNum, 'app: wrong result tag');
   Assert(Abs(v.num - 42.0) < 0.01, 'app: wrong result value');
+
+  // Test 9: proving Lexical Scoping (closure captures defining env)
+  // say that env has y = 10 s.t. (lambda (x) : y) 999 => 10
+
+  env := nil;
+  bound.tag := vtNum;
+  bound.num := 10.0;
+  env := Extend(env, 'y', bound);
+
+  New(bodyExpr);
+  bodyExpr^.tag := etId;
+  bodyExpr^.name := 'y';
+
+  New(condExpr);
+  condExpr^.tag := etLam;
+  condExpr^.param := 'x';
+  condExpr^.body := bodyExpr;
+
+  New(thenExpr);
+  thenExpr^.tag := etNum;
+  thenExpr^.num := 999.0;
+
+  e.tag := etApp;
+  e.funcExpr := condExpr;
+  e.argExpr := thenExpr;
+
+  v := Interp(e, env);
+
+  Assert(v.tag = vtNum, 'closure env: wrong result tag');
+  Assert(Abs(v.num - 10) < 0.01, 'closure env: wrong captured value');
 end;
 
 end.
