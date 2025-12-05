@@ -9,7 +9,7 @@ uses
 
 type
   // ===== Expression Types =====
-  ExprTag = (etNum, etStr, etId, etIf);
+  ExprTag = (etNum, etStr, etId, etIf, etLam);
 
   PExpr = ^ExprC;
 
@@ -23,6 +23,10 @@ type
         condExpr : PExpr;
         thenExpr : PExpr;
         elseExpr : PExpr
+      );
+      etLam: (
+        param: ShortString;
+        body: PExpr
       );
   end;
 
@@ -114,6 +118,7 @@ end;
 function Interp(const e: ExprC; env: PEnv): Value;
 var
   condVal: Value;
+  clos: PClosure;
 begin
   case e.tag of
     etNum:
@@ -144,6 +149,17 @@ begin
           Result := Interp(e.thenExpr^, env)
         else
           Result := Interp(e.elseExpr^, env);
+      end;
+
+    etLam:
+      begin
+        New(clos);
+        clos^.param := e.param;
+        clos^.body := e.body;
+        clos^.env := env;
+
+        Result.tag := vtClosure;
+        Result.closure := clos;
       end;
   else
     raise InterpError.Create('interp: unknown expression tag');
@@ -252,6 +268,24 @@ begin
 
   Assert(v.tag = vtClosure, 'closure: wrong tag');
 
+  // Test 7: interp of lambda produces a closure
+
+  env := nil;
+
+  New(bodyExpr);
+  bodyExpr^.tag := etNum;
+  bodyExpr^.num := 5;
+
+  e.tag := etLam;
+  e.param := 'x';
+  e.body := bodyExpr;
+
+  v := Interp(e, env);
+
+  Assert(v.tag = vtClosure, 'lambda: result not closure');
+  Assert(v.closure^.param = 'x', 'lambda: wrong param name');
+  Assert(v.closure^.body^.tag = etNum, 'lambda: wrong body tag');
+  Assert(Abs(v.closure^.body^.num - 5.0) < 0.01, 'lambda: wrong body value');
 end;
 
 end.
