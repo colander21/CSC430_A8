@@ -9,7 +9,9 @@ uses
 
 type
   // ===== Expression Types =====
-  ExprTag = (etNum, etStr, etId);
+  ExprTag = (etNum, etStr, etId, etIf);
+
+  PExpr = ^ExprC;
 
   ExprC = record
     tag: ExprTag;
@@ -17,6 +19,11 @@ type
       etNum: (num: Double);
       etStr: (str: ShortString);
       etId:  (name: ShortString);
+      etIf: (
+        condExpr : PExpr;
+        thenExpr : PExpr;
+        elseExpr : PExpr
+      );
   end;
 
   // ===== Value Types =====
@@ -94,8 +101,10 @@ begin
   raise InterpError.CreateFmt('unbound identifier: %s', [name]);
 end;
 
-// ===== Interp (basic version with only Num, String, Id) =====
+// ===== Interp (basic version with only Num, String, Id, If) =====
 function Interp(const e: ExprC; env: PEnv): Value;
+var
+  condVal: Value;
 begin
   case e.tag of
     etNum:
@@ -115,6 +124,18 @@ begin
         Result := Lookup(env, e.name);
       end;
 
+    etIf:
+      begin
+        condVal := Interp(e.condExpr^, env);
+
+        if condVal.tag <> vtBool then
+          raise InterpError.Create('interp: if condition is not boolean');
+
+        if condVal.bool then
+          Result := Interp(e.thenExpr^, env)
+        else
+          Result := Interp(e.elseExpr^, env);
+      end;
   else
     raise InterpError.Create('interp: unknown expression tag');
   end;
@@ -126,6 +147,7 @@ var
   env: PEnv;
   e: ExprC;
   v, bound: Value;
+  condExpr, thenExpr, elseExpr: PExpr;
 begin
   Writeln('--- TestInterp ---');
 
@@ -172,6 +194,37 @@ begin
   Assert(v.bool = True, 'Bool lookup: wrong value');
 
   Writeln('All tests passed.');
+
+  // Test 5: if w/ true condition
+  // env only has one binding where cond = true
+
+  env := nil;
+  bound.tag := vtBool;
+  bound.bool := True;
+  env := Extend(env, 'cond', bound);
+
+  New(condExpr);
+  condExpr^.tag := etId;
+  condExpr^.name := 'cond';
+
+  New(thenExpr);
+  thenExpr^.tag := etNum;
+  thenExpr^.num := 44;
+
+  New(elseExpr);
+  elseExpr^.tag := etNum;
+  elseExpr^.num := 99;
+
+  e.tag := etIf;
+  e.condExpr := condExpr;
+  e.thenExpr := thenExpr;
+  e.elseExpr := elseExpr;
+
+  v := Interp(e, env);
+  
+  Assert(v.tag = vtNum, 'if true: wrong tag');
+  Assert(Abs(v.num - 44.0) < 0.01, 'if true: wrong value');
+
 end;
 
 end.
