@@ -27,7 +27,10 @@ type
   end;
 
   // ===== Value Types =====
-  ValueTag = (vtNum, vtStr, vtBool);
+  ValueTag = (vtNum, vtStr, vtBool, vtClosure);
+
+  PEnv = ^Env;
+  PClosure = ^Closure;
 
   Value = record
     tag: ValueTag;
@@ -35,15 +38,21 @@ type
       vtNum: (num: Double);
       vtStr: (str: ShortString);
       vtBool: (bool: Boolean);
+      vtClosure: (closure: PClosure);
   end;
 
   // ===== Environment (linked list) =====
-  PEnv = ^Env;
 
   Env = record
     name: ShortString;
     value: Value;
     next: PEnv;
+  end;
+
+  Closure = record
+    param: ShortString;
+    body: PExpr;
+    env: PEnv;
   end;
 
 function Extend(env: PEnv; const name: ShortString; const v: Value): PEnv;
@@ -148,6 +157,8 @@ var
   e: ExprC;
   v, bound: Value;
   condExpr, thenExpr, elseExpr: PExpr;
+  bodyExpr: PExpr;
+  clos: PClosure;
 begin
   Writeln('--- TestInterp ---');
 
@@ -224,6 +235,22 @@ begin
   
   Assert(v.tag = vtNum, 'if true: wrong tag');
   Assert(Abs(v.num - 44.0) < 0.01, 'if true: wrong value');
+
+  // Test 6: Basic closure value construction
+
+  New(bodyExpr);
+  bodyExpr^.tag := etNum;
+  bodyExpr^.num := 0;
+
+  New(clos);
+  clos^.param := 'x';
+  clos^.body := bodyExpr;
+  clos^.env := nil;
+
+  v.tag := vtClosure;
+  v.closure := clos;
+
+  Assert(v.tag = vtClosure, 'closure: wrong tag');
 
 end;
 
