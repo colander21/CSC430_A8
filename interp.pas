@@ -211,6 +211,13 @@ begin
   end;
 end;
 
+function TopInterp(const e: ExprC): ShortString;
+var v: Value;
+begin
+v := Interp(e, TopLevelEnv);
+Result := Serialize(v);
+end;
+
 // ===== Tests =====
 procedure TestInterp;
 var
@@ -400,6 +407,7 @@ begin
 
 
   // Test 11: TopLevelEnv test bindings
+  env := TopLevelEnv;
   v := Lookup(env, 'true');
   Assert(v.tag = vtBool, 'TopLevelEnv true has wrong tag');
   Assert(v.bool = True, 'TopLevelEnv true has wrong value');
@@ -408,6 +416,10 @@ begin
   Assert(v.tag = vtBool, 'TopLevelEnv false has wrong tag');
   Assert(v.bool = False, 'TopLevelEnv false has wrong value');
 
+  // Test 12: TopInterp
+  e.tag := etNum;
+  e.num := 42.0;
+  Assert(TopInterp(e) = '42', 'TopInterp wrong output for 42');
 
 end;
 
